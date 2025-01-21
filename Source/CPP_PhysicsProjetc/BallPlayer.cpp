@@ -2,6 +2,7 @@
 
 
 #include "BallPlayer.h"
+#include "EnhancedInputComponent.h"
 
 // Sets default values
 ABallPlayer::ABallPlayer()
@@ -29,6 +30,19 @@ void ABallPlayer::Tick(float DeltaTime)
 void ABallPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(InputComponent);
+	Input->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ABallPlayer::Move);
+	Input->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ABallPlayer::Jump);
+}
 
+void ABallPlayer::Move(const FInputActionValue& InputValue)
+{
+	const FVector VectorDirection = FVector(InputValue.Get<FVector2d>().X,InputValue.Get<FVector2d>().Y,0);
+	Mesh->AddImpulse(VectorDirection);
+}
+
+void ABallPlayer::Jump(const FInputActionValue& InputValue)
+{
+	const FVector2d VectorDirection = InputValue.Get<FVector2d>();
 }
 
