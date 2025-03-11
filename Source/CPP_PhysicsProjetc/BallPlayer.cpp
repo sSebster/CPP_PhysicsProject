@@ -10,39 +10,61 @@ ABallPlayer::ABallPlayer()
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BallMesh"));
+	SetRootComponent(Mesh);
+
+	// Active la physique sur la balle
+	Mesh->SetSimulatePhysics(true);
+	Mesh->SetEnableGravity(true);
+
+	Mesh->OnComponentHit.AddDynamic(this, &ABallPlayer::OnHit);
+
 }
 
 // Called when the game starts or when spawned
 void ABallPlayer::BeginPlay()
 {
 	Super::BeginPlay();
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
 	
+	// Active la physique
+	Mesh->SetSimulatePhysics(true);
+
+	// Désactive la gravité si nécessaire (pour tester le mouvement uniquement)
+	Mesh->SetEnableGravity(true);
 }
 
 // Called every frame
 void ABallPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	IsOnGround();
 }
 
-// Called to bind functionality to input
-void ABallPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+void ABallPlayer::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-	UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(InputComponent);
-	Input->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ABallPlayer::Move);
-	Input->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ABallPlayer::Jump);
+	// Si la balle touche le sol, réinitialise IsJumping
+	//UE_LOG(LogTemp, Warning , TEXT("HIT"));
+	if (HitComponent && OtherComp && OtherComp->IsA(UPrimitiveComponent::StaticClass()))
+	{
+		IsJumping = false;
+		CanDoubleJump = false;
+		//UE_LOG(LogTemp, Warning , TEXT("Reset jump"));
+	}
+	if(!HitComponent)
+	{
+		IsJumping = true;
+	}
 }
 
-void ABallPlayer::Move(const FInputActionValue& InputValue)
+void ABallPlayer::IsOnGround()
 {
-	const FVector VectorDirection = FVector(InputValue.Get<FVector2d>().X,InputValue.Get<FVector2d>().Y,0);
-	Mesh->AddImpulse(VectorDirection);
-}
+	FVector Start = GetActorLocation();
+	FVector End = Start - FVector(0, 0, 100.0f); // Trace 50 unités sous la balle
 
-void ABallPlayer::Jump(const FInputActionValue& InputValue)
-{
-	const FVector2d VectorDirection = InputValue.Get<FVector2d>();
-}
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this); // Ignore le joueur lui-même
 
+	Grounded = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, QueryParams);
+}
